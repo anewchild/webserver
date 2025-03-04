@@ -76,6 +76,12 @@
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="method.cpp" />
+    <ClCompile Include="WebServer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="method.h" />
+    <ClInclude Include="WebServer.h" />
   </ItemGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

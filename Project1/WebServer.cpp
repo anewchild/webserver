@@ -1,5 +1,6 @@
 #include "WebServer.h"
 #include "method.h"
+#include "Task.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -8,6 +9,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
+
 //#include<sys/epoll.h>
 bool WebServer::init() {
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -36,6 +38,7 @@ bool WebServer::init() {
 		printf("epoll_create error\n");
 		return false;
 	}
+	pool_pts = new ThreadPool();
 	return true;
 }
 
@@ -64,7 +67,7 @@ bool WebServer::listen_loop() {
 				int acceptfd = accept(listenfd, (sockaddr*)&client_addr, &addrlen);
 				if (acceptfd == -1) {
 					printf("accept error\n");
-					continue;
+					continue;                                                                                                                                     
 				}
 				if (!addfd(m_epollfd, acceptfd)) {
 					printf("accept error %s\n", errno);
@@ -74,28 +77,8 @@ bool WebServer::listen_loop() {
 			}
 			else {
 				if (events[i].events & EPOLLIN) {
-					char buf[1024];
-					while (true) {
-                        ssize_t ret = recv(sockfd, buf, sizeof(buf), 0);
-						if (ret == -1) {
-							if (errno == EWOULDBLOCK) {
-								break;
-							}
-							else if (errno == EINTR) {
-								printf("I m here\n");
-								continue;
-							}
-							printf("recv error\n");
-							break;
-						}
-						else if (ret == 0) {
-							printf("close socket\n");
-							epoll_ctl(m_epollfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
-							close(sockfd);
-							break;
-						}
-					}
-					printf("read sucess\n");
+					pool_pts->push(std::move(Task(m_epollfd,sockfd)));
+					//printf("read sucess\n");
 				}
 				else if (events[i].events & EPOLLRDHUP) {
 					printf("error!\n");
@@ -124,4 +107,11 @@ bool WebServer::addfd(int epollfd, int sockfd, bool one_shoot) {
 	}
 	if (!setnoblockfd(sockfd))return false;
 	return true;
+}
+WebServer::WebServer() :listenfd(-1), m_epollfd(-1) {
+}
+WebServer::~WebServer() {
+	if(listenfd != -1)close(listenfd);
+	if(m_epollfd != -1)close(m_epollfd);
+	if (pool_pts != nullptr)delete pool_pts;
 }

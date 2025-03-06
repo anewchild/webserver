@@ -3,7 +3,7 @@
 #include "Task.h"
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+//#include <netinet/in.h>
 #include <arpa/inet.h> 
 #include <cstring>
 #include <stdio.h>
@@ -72,6 +72,7 @@ bool WebServer::listen_loop() {
 				if (!addfd(m_epollfd, acceptfd)) {
 					printf("accept error %s\n", errno);
 					close(acceptfd);
+					
 					continue;
 				}
 			}
@@ -87,7 +88,7 @@ bool WebServer::listen_loop() {
 					continue;
 				}
 				else {
-					printf("fill\n");
+					printf("unknow error\n");
 				}
 			}
 		}
@@ -96,7 +97,7 @@ bool WebServer::listen_loop() {
 }
 
 
-
+WebServer* WebServer::instance = new WebServer();
 bool WebServer::addfd(int epollfd, int sockfd, bool one_shoot) {
 	epoll_event event;
 	event.data.fd = sockfd;
@@ -114,4 +115,5 @@ WebServer::~WebServer() {
 	if(listenfd != -1)close(listenfd);
 	if(m_epollfd != -1)close(m_epollfd);
 	if (pool_pts != nullptr)delete pool_pts;
+	if (instance != nullptr)delete instance;
 }

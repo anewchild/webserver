@@ -1,6 +1,8 @@
 #include "method.h"
 #include <fcntl.h>
 #include<sys/epoll.h>
+#include<signal.h>
+#include<errno.h>
 bool setnoblockfd(int sockfd) {
 	int oldsockflag = fcntl(sockfd, F_GETFL, 0);
 	int newsockflag = oldsockflag | O_NONBLOCK;

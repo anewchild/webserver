@@ -26,9 +26,9 @@ void Task::handle() {
 			break;
 		}
 		else if (ret == 0) {
-			printf("close socket\n");
-			epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, NULL);
-			close(sockfd);
+			//printf("close socket\n");
+			//epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, NULL);
+			//close(sockfd);
 			break;
 		}
 		printf("%s", buf);

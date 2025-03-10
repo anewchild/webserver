@@ -85,12 +85,13 @@ bool WebServer::listen_loop() {
 			}
 			else {
 				if (events[i].events & EPOLLRDHUP) {
-					printf("close socket!\n");
-					epoll_ctl(m_epollfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
-					close(events[i].data.fd);
-					continue;
+					//printf("close socket!\n");
+					//epoll_ctl(m_epollfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
+					//close(events[i].data.fd);
+					eraseclient(sockfd);
 				}
 				else if (events[i].events & EPOLLIN) {
+					adjustclient(sockfd);
 					pool_pts->push(std::move(Task(m_epollfd,sockfd)));
 					//printf("read sucess\n");
 				}
@@ -271,4 +272,16 @@ void Timer_List::tick() {
 		ptr = tmp;
 	}
 	return;
+}
+
+void WebServer::eraseclient(int sockfd) {
+	timer_list->erase_timer(user[sockfd].timer);
+	epoll_ctl(m_epollfd, EPOLL_CTL_DEL, sockfd, NULL);
+	close(sockfd);
+}
+
+void WebServer::adjustclient(int sockfd) {
+	time_t cur = time(NULL);
+	user[sockfd].timer->expire = cur + 3 * TIMEOUT;
+	timer_list->adjust_timer(user[sockfd].timer);
 }

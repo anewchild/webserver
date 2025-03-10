@@ -16,6 +16,8 @@ private:
 	void addsig(int sig, void(handler)(int),bool restart);
 	bool dealwithsig();
 	void addclient();
+	void eraseclient(int sockfd);
+	void adjustclient(int sockfd);
 public:
 	bool init();
 	bool listen_loop();

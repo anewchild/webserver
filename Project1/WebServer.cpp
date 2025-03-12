@@ -17,7 +17,7 @@ int client_num = 0;
 bool WebServer::init() {
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (listenfd == -1) {
-		printf("listen error\n");
+		LOG_ERROR("listen error");
 		return false;
 	}
 	sockaddr_in addr;
@@ -29,22 +29,24 @@ bool WebServer::init() {
 	int opt = 1;
 	setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));//设置端口复用
 	if (bind(listenfd, (sockaddr*)&addr, sizeof(addr)) == -1) {
-		printf("bind error\n");
+		LOG_ERROR("bind error");
 		return false;
 	}
 	if (listen(listenfd, 10) == -1) {
-		printf("listen error\n");
+		LOG_ERROR("listen error");
 		return false;
 	}
 	m_epollfd = epoll_create(5);
 	if (m_epollfd == -1) {
-		printf("epoll_create error\n");
+		LOG_ERROR("epoll_create error");
 		return false;
 	}
 	pool_pts = new ThreadPool();
 	user = new Client_Data[MAXFD];
 	timer_list = new Timer_List();
 	client_num = 0;
+	Log::get()->init("log.txt");//日志初始化
+	//LOG_INFO("hello,world");
 	return true;
 }
 
@@ -64,7 +66,7 @@ bool WebServer::listen_loop() {
 				continue;
 			}
 			else {
-				printf("epoll_wait error\n");
+				LOG_ERROR("epoll_wait error");
 				return false;
 			}
 		}
@@ -96,12 +98,12 @@ bool WebServer::listen_loop() {
 					//printf("read sucess\n");
 				}
 				else {
-					printf("unknow error\n");
+					LOG_WARN("unknow error");
 				}
 			}
 		}
 		if (timer_checkout) {
-			printf("timerout\n");
+			LOG_INFO("timerout");
 			timer_list->tick();
 			timer_checkout = false;
 		}
@@ -186,7 +188,6 @@ void Timer_List::adjust_timer(util_timer* timer) {
 void fsig_handler(int sig) {
 	int save_errno = errno;
 	int msg = sig;
-	//printf("error!\n");
 	send(pipefd[1], (char*)&msg, 1, 0);
 	errno = save_errno;
 }
@@ -202,10 +203,10 @@ void WebServer::addsig(int sig,void(handler)(int),bool restart) {
 
 bool WebServer::dealwithsig() {
 	long ret = 0;
-	char buf[1024];
+	char buf[128];
 	ret = recv(pipefd[0], buf, sizeof(buf), 0);
 	if (ret == -1 or ret == 0) {
-		printf("dealwitherror\n");
+		LOG_ERROR("dealwitherror");
 		return false;
 	}
 	else {
@@ -213,10 +214,10 @@ bool WebServer::dealwithsig() {
 			switch (buf[i])
 			{
 			case SIGALRM:
-				printf("dealwithtimerout\n");
+				LOG_INFO("dealwithtimerout");
 				break;
 			default:
-				printf("what happen\n");
+				LOG_ERROR("unknow errno");
 				break;
 			}
 		}
@@ -229,21 +230,20 @@ void cb_func(Client_Data* client) {
 	int ret = epoll_ctl(epollfd, EPOLL_CTL_DEL, client->sockfd, NULL);
 	close(client->sockfd);
 	if (ret == -1) {
-		printf("error cb\n");
+		LOG_ERROR("error cb");
 		return;
 	}
-	printf("sucess cb\n");
 }
 void WebServer::addclient() {
 	sockaddr_in tmp_addr;
 	socklen_t addrlen = sizeof(tmp_addr);
 	int acceptfd = accept(listenfd, (sockaddr*)&tmp_addr, &addrlen);
 	if (acceptfd == -1) {
-		printf("accept error\n");
+		LOG_ERROR("accept error");
 		return;
 	}
 	if (!addfd(m_epollfd, acceptfd)) {
-		printf("accept error %s\n", errno);
+		LOG_ERROR((std::string)"addfd error " + std::to_string(errno));
 		close(acceptfd);
 		return;
 	}
@@ -257,7 +257,6 @@ void WebServer::addclient() {
 	ptr->cb_func = cb_func;
 	client_num++;
 	timer_list->add_timer(ptr);
-	printf("add timer sucess!\n");
 }
 void Timer_List::tick() {
 	util_timer* ptr = head->next;

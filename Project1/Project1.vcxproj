@@ -81,6 +81,7 @@
     <ClCompile Include="WebServer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Log.h" />
     <ClInclude Include="method.h" />
     <ClInclude Include="Task.h" />
     <ClInclude Include="ThreadPool.h" />

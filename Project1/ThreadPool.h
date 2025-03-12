@@ -1,6 +1,7 @@
 #pragma once
 #include<queue>
 #include"Task.h"
+#include"Log.h"
 #include<thread>
 #include<mutex>
 #include<condition_variable>
@@ -51,7 +52,7 @@ public:
 		{
 			std::unique_lock<std::mutex> lock(mtx);
 			if (stop) {
-				printf("push error\n");
+				LOG_ERROR("push error");
 				return false;
 			}
 			task_queue.push(task);

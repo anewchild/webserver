@@ -3,6 +3,7 @@
 #include<memory>
 #include"ThreadPool.h"
 #include <netinet/in.h>
+#include "Log.h"
 #define MAX_EVENT_NUMBER 10000
 #define MAXFD 65536
 void fsig_handler(int sig);

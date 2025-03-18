@@ -3,6 +3,18 @@
 #include <unistd.h>
 #include<sys/mman.h>
 #include<sys/stat.h>
+
+const std::string ok_200_title = "OK";
+const std::string error_400_title = "Bad Request";
+const std::string error_400_form = "Your request has bad syntax or is inherently impossible to staisfy.\n";
+const std::string error_403_title = "Forbidden";
+const std::string error_403_form = "You do not have permission to get file form this server.\n";
+const std::string error_404_title = "Not Found";
+const std::string error_404_form = "The requested file was not found on this server.\n";
+const std::string error_500_title = "Internal Error";
+const std::string error_500_form = "There was an unusual problem serving the request file.\n";
+
+
 bool Http_conn::f_read() {
 	// 循环读入数据
 	while (true) {
@@ -126,26 +138,75 @@ bool Http_conn::read_request_content() {
 	request_content = std::string(m_buffer + check_idx, read_idx - check_idx);
 	return true;
 }
-bool Http_conn::get_text() {
-	send_content += "HTTP/1.1 200 OK\r\n";
-	send_content += "Content_Length: " + std::to_string(m_stat.st_size) + "\r\n\r\n";
+void Http_conn::add_content_length(long content_l) {
+	send_content += "Content-Length:" + std::to_string(content_l) + "\r\n";
+}
+void Http_conn::add_content(const std::string& content_s) {
+	send_content += content_s;
+}
+void Http_conn::get_text() {
+	send_content += "HTTP/1.1 ";
+	switch (http_status)
+	{
+	case FILE_REQUEST:
+		send_content += "200 " + ok_200_title + "\r\n";
+		add_connection();
+		add_content_length(m_stat.st_size);
+		add_blank();
+		break;
+	case BAD_REQUEST:
+		send_content += "400 " + error_400_title + "\r\n";
+		add_connection();
+		add_content_length(error_400_form.size());
+		add_blank();
+		add_content(error_400_form);
+		break;
+	case NO_RESOURCE:
+		send_content += "404 " + error_404_title + "\r\n";
+		add_connection();
+		add_content_length(error_404_form.size());
+		add_blank();
+		add_content(error_404_form);
+		break;
+	default:
+		send_content += "500 " + error_500_title + "\r\n";
+		add_connection();
+		add_content_length(error_500_form.size());
+		add_blank();
+		add_content(error_500_form);
+		break;
+	}
 	m_iovec[0].iov_base = (void *)send_content.c_str();
 	m_iovec[0].iov_len = (size_t)send_content.size();
-	m_iovec[1].iov_base = (void*)file_p;
-	m_iovec[1].iov_len = m_stat.st_size;
-	writev(sockfd, m_iovec, 2);
+	send_size = send_content.size();
+	num_iov = 1;
+	if (http_status == FILE_REQUEST) {
+		m_iovec[1].iov_base = (void*)file_p;
+		m_iovec[1].iov_len = m_stat.st_size;
+		num_iov = 2;
+		send_size = m_stat.st_size + send_content.size();
+	}
 }
 bool Http_conn::get_file() {
 	url = cwd_s + url;
-	//std::cout << url << "\n";
-	stat(url.c_str(), &m_stat);
-	//std::cout << ((int)m_stat.st_size) << "\n";
+	if (stat(url.c_str(), &m_stat) < 0) {
+		http_status = NO_RESOURCE;
+		return false;
+	}
 	int file_fd = open(url.c_str(), O_RDONLY);
+	if (file_fd <= 0) {
+		http_status = NO_RESOURCE;
+		return false;
+	}
 	file_p = (char*)mmap(0, m_stat.st_size, PROT_READ, MAP_PRIVATE, file_fd, 0);
-	//printf("%s\n", file_p);
+	close(file_fd);
+	http_status = FILE_REQUEST;
+	return true;
 }
 bool Http_conn::http_read() {
-	if (!f_read())return false;
+	if (!f_read()) {
+		return false;
+	}
 	status = REQUEST_LINE;
 	bool ret = true;
 	while (check_idx < read_idx) {
@@ -154,22 +215,87 @@ bool Http_conn::http_read() {
 		case REQUEST_LINE:
 			read_line();
 			ret = read_request_line();
-			if (!ret)return false;
+			if (!ret) {
+				http_status = BAD_REQUEST;
+				return false;
+			}
 			break;
 		case REQUEST_HEAD:
 			read_line();
 			ret = read_request_head();
-			if (!ret)return false;
+			if (!ret) {
+				http_status = BAD_REQUEST;
+				return false;
+			}
 			break;
 		case REQUEST_TEXT:
-			read_request_content();
+			ret = read_request_content();
+			if (!ret) {
+				http_status = BAD_REQUEST;
+				return false;
+			}
 			break;
 		default:
+			http_status = INTERNAL_ERROR;
+			return false;
 			break;
 		}
 	}
 	deal_with_head();
-	get_file();
+	if (!get_file()) {
+		return false;
+	}
+	return true;
+	//munmap(file_p, m_stat.st_size);
+}
+bool Http_conn::http_process() {
+	bool ret = http_read();
+	LOG_DEBUG("http_read finsh");
+	//if (!ret) {
+	//	return false;
+	//}
 	get_text();
-	munmap(file_p, m_stat.st_size);
+	std::cout << send_content << "\n";
+	if (!modfd(EPOLLOUT)) {
+		std::cout << "OK?\n";
+		return false;
+	}
+	return true;
+}
+bool Http_conn::http_send() {
+	// false -> deltimer;
+	long send_tmp = 0;
+	while (true) {
+		send_tmp = writev(sockfd, m_iovec, num_iov);
+		if (send_tmp < 0) {
+			// 发送出错
+			if(num_iov > 1)munmap(file_p, m_stat.st_size);
+			return false;
+		}
+		have_send_size += send_tmp;
+		if (have_send_size >= (int)m_iovec[0].iov_len and num_iov > 1) {
+			m_iovec[1].iov_base = file_p + have_send_size - send_content.size();
+			m_iovec[1].iov_len = m_stat.st_size - have_send_size + send_content.size();
+		}
+		else {
+			m_iovec[0].iov_base = (void *)(send_content.c_str() + have_send_size);
+			m_iovec[0].iov_len = send_content.size() - have_send_size;
+		}
+		if (have_send_size >= send_size) {
+			// 发送完毕
+			if (num_iov > 1) {
+				munmap(file_p, m_stat.st_size);
+			}
+			modfd(EPOLLIN);
+			LOG_DEBUG("sucess !");
+			if (long_alive) {
+				init();
+				//长连接
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+	}
 }

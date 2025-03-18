@@ -92,6 +92,9 @@
   <ItemGroup>
     <None Include="bin\x64\Debug\index.html" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="bin\x64\Debug\favicon.ico" />
+  </ItemGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <CppLanguageStandard>c++14</CppLanguageStandard>

@@ -4,12 +4,27 @@
 #include"ThreadPool.h"
 #include <netinet/in.h>
 #include "Log.h"
+#include "Http_conn.h"
+#include "method.h"
+#include "Task.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h> 
+#include <cstring>
+#include <stdio.h>
+#include <errno.h>
+#include <unistd.h>
+#include <signal.h>
+#include <assert.h>
 #define MAX_EVENT_NUMBER 10000
 #define MAXFD 65536
 void fsig_handler(int sig);
 class Client_Data;
 class Timer_List;
 void cb_func(Client_Data* client);
+class Http_conn;
+class Task;
+//class ThreadPool;
 class WebServer
 {
 private:
@@ -35,9 +50,11 @@ private:
 	void (*sig_handler)(int);
 	epoll_event events[MAX_EVENT_NUMBER];
 	Client_Data* user;
-	ThreadPool* pool_pts;
+	ThreadPool<Task>* pool_pts;
 	Timer_List* timer_list;
+	Http_conn* client_conn;
 	static WebServer* instance;
+	char cwd_str[1024];
 	bool timer_checkout;
 };
 //#ifndef INIT_WEB_SERVER

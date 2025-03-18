@@ -1,20 +1,9 @@
 #include "WebServer.h"
-#include "method.h"
-#include "Task.h"
-#include <sys/types.h>
-#include <sys/socket.h>
-//#include <netinet/in.h>
-#include <arpa/inet.h> 
-#include <cstring>
-#include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
-#include <signal.h>
-#include<assert.h>
 int pipefd[2];
 int client_num = 0;
 //#include<sys/epoll.h>
 bool WebServer::init() {
+	getcwd(cwd_str, sizeof(cwd_str));//获取工作目录
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (listenfd == -1) {
 		LOG_ERROR("listen error");
@@ -41,8 +30,9 @@ bool WebServer::init() {
 		LOG_ERROR("epoll_create error");
 		return false;
 	}
-	pool_pts = new ThreadPool();
+	pool_pts = new ThreadPool<Task>();
 	user = new Client_Data[MAXFD];
+	client_conn = new Http_conn[MAXFD];
 	timer_list = new Timer_List();
 	client_num = 0;
 	Log::get()->init("log.txt");//日志初始化
@@ -94,8 +84,12 @@ bool WebServer::listen_loop() {
 				}
 				else if (events[i].events & EPOLLIN) {
 					adjustclient(sockfd);
-					pool_pts->push(std::move(Task(m_epollfd,sockfd)));
+					pool_pts->push(std::move(Task(m_epollfd,sockfd,0,client_conn + sockfd)));
 					//printf("read sucess\n");
+				}
+				else if (events[i].events & EPOLLOUT) {
+					adjustclient(sockfd);
+					pool_pts->push(std::move(Task(m_epollfd, sockfd, 1,client_conn + sockfd)));
 				}
 				else {
 					LOG_WARN("unknow error");
@@ -125,7 +119,7 @@ bool WebServer::addfd(int epollfd, int sockfd, bool one_shoot) {
 	if (!setnoblockfd(sockfd))return false;
 	return true;
 }
-WebServer::WebServer() :listenfd(-1), m_epollfd(-1),user(nullptr),timer_list(nullptr){
+WebServer::WebServer() :listenfd(-1), m_epollfd(-1),user(nullptr),timer_list(nullptr),client_conn(nullptr),pool_pts(nullptr){
 }
 WebServer::~WebServer() {
 	if(listenfd != -1)close(listenfd);
@@ -134,6 +128,7 @@ WebServer::~WebServer() {
 	if (instance != nullptr)delete instance;
 	if (user != nullptr)delete[] user;
 	if (timer_list != nullptr)delete timer_list;
+	if (client_conn != nullptr)delete[] client_conn;
 	close(pipefd[0]);
 	close(pipefd[1]);
 }
@@ -229,10 +224,6 @@ void cb_func(Client_Data* client) {
 	client_num--;
 	int ret = epoll_ctl(epollfd, EPOLL_CTL_DEL, client->sockfd, NULL);
 	close(client->sockfd);
-	if (ret == -1) {
-		LOG_ERROR("error cb");
-		return;
-	}
 }
 void WebServer::addclient() {
 	sockaddr_in tmp_addr;
@@ -242,11 +233,12 @@ void WebServer::addclient() {
 		LOG_ERROR("accept error");
 		return;
 	}
-	if (!addfd(m_epollfd, acceptfd)) {
-		LOG_ERROR((std::string)"addfd error " + std::to_string(errno));
+	client_conn[acceptfd].set(m_epollfd, acceptfd, cwd_str);
+	if (!client_conn[acceptfd].addfd(EPOLLIN)) {
 		close(acceptfd);
 		return;
 	}
+	LOG_DEBUG("Add 1");
 	user[acceptfd].sockfd = acceptfd;
 	user[acceptfd].addr = tmp_addr;
 	user[acceptfd].timer = new util_timer();
@@ -275,8 +267,9 @@ void Timer_List::tick() {
 
 void WebServer::eraseclient(int sockfd) {
 	timer_list->erase_timer(user[sockfd].timer);
-	epoll_ctl(m_epollfd, EPOLL_CTL_DEL, sockfd, NULL);
-	close(sockfd);
+	client_conn[sockfd].erasefd();
+	//epoll_ctl(m_epollfd, EPOLL_CTL_DEL, sockfd, NULL);
+	//close(sockfd);
 }
 
 void WebServer::adjustclient(int sockfd) {

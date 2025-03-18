@@ -2,13 +2,16 @@
 #include<queue>
 #include"Task.h"
 #include"Log.h"
+#include"Http_conn.h"
 #include<thread>
 #include<mutex>
 #include<condition_variable>
+//class Task;
+template<class T>
 class ThreadPool
 {
 private:
-	std::queue<Task> task_queue;
+	std::queue<T> task_queue;
 	std::vector<std::thread> threads;
 	std::mutex mtx;
 	std::condition_variable cv;
@@ -17,7 +20,7 @@ private:
 private:
 	void work() {
 		while (true) {
-			Task task;
+			T task;
 			{
 				std::unique_lock<std::mutex> lock(this->mtx);
 				this->cv.wait(lock, [this] {return !task_queue.empty() or stop; });
@@ -25,6 +28,7 @@ private:
 				task = task_queue.front();
 				task_queue.pop();
 			}
+			//LOG_DEBUG("success push");
 			task.handle();
 		}
 		return;
@@ -48,7 +52,7 @@ public:
 		}
 	}
 public:
-	bool push(Task &&task) {
+	bool push(T &&task) {
 		{
 			std::unique_lock<std::mutex> lock(mtx);
 			if (stop) {
@@ -61,4 +65,3 @@ public:
 		return true;
 	}
 };
-

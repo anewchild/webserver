@@ -7,6 +7,7 @@
 #include<sys/stat.h>
 #include<sys/uio.h>
 #include<unistd.h>
+void http_init_sql();
 enum METHOD{
 	GET = 0,
 	POST
@@ -92,7 +93,8 @@ public:
 		m_host.clear();
 		long_alive = false;
 		content_length = 0;
-		line_start = line_end = 0;
+		line_start = 0;
+		line_end = 0;
 		check_idx = read_idx = 0;
 		send_size = have_send_size = 0;
 		memset(m_buffer, '\0', sizeof(m_buffer));
@@ -114,6 +116,8 @@ private:
 	std::string request_content;
 	std::string send_content;
 	std::string cwd_s;
+	std::string user_name;
+	std::string user_password;
 	char* file_p;
 	bool long_alive;
 	long content_length;
@@ -124,7 +128,6 @@ private:
 	int line_end;
 	int check_idx;
 	int read_idx;
-	//Client_Data* client;
 	char m_buffer[MAXBUFFER];
 	struct stat m_stat;
 	iovec m_iovec[2];

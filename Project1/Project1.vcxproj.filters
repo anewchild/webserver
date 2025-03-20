@@ -6,6 +6,7 @@
     <ClCompile Include="method.cpp" />
     <ClCompile Include="Task.cpp" />
     <ClCompile Include="WebServer.cpp" />
+    <ClCompile Include="Sql_pool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Http_conn.h" />
@@ -14,11 +15,16 @@
     <ClInclude Include="Task.h" />
     <ClInclude Include="ThreadPool.h" />
     <ClInclude Include="WebServer.h" />
+    <ClInclude Include="Sql_pool.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="bin\x64\Debug\index.html" />
+    <None Include="bin\x64\Debug\loginerror.html" />
+    <None Include="bin\x64\Debug\registererror.html" />
+    <None Include="bin\x64\Debug\welcome.html" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="bin\x64\Debug\favicon.ico" />
+    <Image Include="bin\x64\Debug\01.jpg" />
   </ItemGroup>
 </Project>

@@ -13,7 +13,6 @@ bool WebServer::init() {
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(8010);
-	//inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	int opt = 1;
 	setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));//设置端口复用
@@ -67,25 +66,19 @@ bool WebServer::listen_loop() {
 			int sockfd = events[i].data.fd;
 			if (sockfd == listenfd) {
 				addclient();
-				//有新的连接
 			}
 			else if (sockfd == pipefd[0] and (events[i].events & EPOLLIN)) {
-				//printf("time out\n");
 				timer_checkout = true;
 				dealwithsig();
 				continue;
 			}
 			else {
 				if (events[i].events & EPOLLRDHUP) {
-					//printf("close socket!\n");
-					//epoll_ctl(m_epollfd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
-					//close(events[i].data.fd);
 					eraseclient(sockfd);
 				}
 				else if (events[i].events & EPOLLIN) {
 					adjustclient(sockfd);
 					pool_pts->push(std::move(Task(m_epollfd,sockfd,0,client_conn + sockfd)));
-					//printf("read sucess\n");
 				}
 				else if (events[i].events & EPOLLOUT) {
 					adjustclient(sockfd);

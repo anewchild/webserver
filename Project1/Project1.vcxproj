@@ -78,6 +78,7 @@
     <ClCompile Include="Http_conn.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="method.cpp" />
+    <ClCompile Include="Sql_pool.cpp" />
     <ClCompile Include="Task.cpp" />
     <ClCompile Include="WebServer.cpp" />
   </ItemGroup>
@@ -85,14 +86,19 @@
     <ClInclude Include="Http_conn.h" />
     <ClInclude Include="Log.h" />
     <ClInclude Include="method.h" />
+    <ClInclude Include="Sql_pool.h" />
     <ClInclude Include="Task.h" />
     <ClInclude Include="ThreadPool.h" />
     <ClInclude Include="WebServer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="bin\x64\Debug\index.html" />
+    <None Include="bin\x64\Debug\loginerror.html" />
+    <None Include="bin\x64\Debug\registererror.html" />
+    <None Include="bin\x64\Debug\welcome.html" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="bin\x64\Debug\01.jpg" />
     <Image Include="bin\x64\Debug\favicon.ico" />
   </ItemGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -100,8 +106,12 @@
       <CppLanguageStandard>c++14</CppLanguageStandard>
     </ClCompile>
     <Link>
-      <LibraryDependencies>pthread;%(LibraryDependencies)</LibraryDependencies>
+      <LibraryDependencies>pthread;mysqlclient;%(LibraryDependencies)</LibraryDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

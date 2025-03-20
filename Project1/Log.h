@@ -26,7 +26,7 @@ public:
 			std::unique_lock<std::mutex>lck(mtx);
 			if (file.is_open()) {
 				file << output;
-				if(level == 0)std::cout << output << "\n";
+				//if(level == 0)std::cout << output << "\n";
 			}
 		}
 	}

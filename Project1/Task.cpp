@@ -7,7 +7,6 @@ void Task::handle() {
 	}
 	else {
 		hptr->http_send();
-		//hptr->erasefd();
 	}
 	return;
 }

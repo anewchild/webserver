@@ -57,10 +57,6 @@ private:
 	char cwd_str[1024];
 	bool timer_checkout;
 };
-//#ifndef INIT_WEB_SERVER
-//#define INIT_WEB_SERVER
-//WebServer* WebServer::instance = new WebServer();
-//#endif
 
 
 class util_timer;

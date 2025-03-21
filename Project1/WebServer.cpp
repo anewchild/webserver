@@ -35,7 +35,6 @@ bool WebServer::init() {
 	timer_list = new Timer_List();
 	client_num = 0;
 	Log::get()->init("log.txt");//日志初始化
-	//LOG_INFO("hello,world");
 	return true;
 }
 
@@ -78,11 +77,18 @@ bool WebServer::listen_loop() {
 				}
 				else if (events[i].events & EPOLLIN) {
 					adjustclient(sockfd);
-					pool_pts->push(std::move(Task(m_epollfd,sockfd,0,client_conn + sockfd)));
+					pool_pts->push(std::move(Task(m_epollfd,sockfd,0,client_conn + sockfd,NULL)));
 				}
 				else if (events[i].events & EPOLLOUT) {
 					adjustclient(sockfd);
-					pool_pts->push(std::move(Task(m_epollfd, sockfd, 1,client_conn + sockfd)));
+					std::promise<bool>*pro_alive = new std::promise<bool>();
+					std::future<bool> future_alive = pro_alive->get_future();
+					pool_pts->push(std::move(Task(m_epollfd, sockfd, 1,client_conn + sockfd,pro_alive)));
+					if (!future_alive.get()) {
+						//这个任务出错或者短链接
+						eraseclient(sockfd);
+					}
+					delete pro_alive;
 				}
 				else {
 					LOG_WARN("unknow error");
@@ -90,7 +96,7 @@ bool WebServer::listen_loop() {
 			}
 		}
 		if (timer_checkout) {
-			LOG_INFO("timerout");
+			LOG_INFO("timeout");
 			timer_list->tick();
 			timer_checkout = false;
 		}
@@ -231,7 +237,6 @@ void WebServer::addclient() {
 		close(acceptfd);
 		return;
 	}
-	LOG_DEBUG("Add 1");
 	user[acceptfd].sockfd = acceptfd;
 	user[acceptfd].addr = tmp_addr;
 	user[acceptfd].timer = new util_timer();
@@ -261,8 +266,6 @@ void Timer_List::tick() {
 void WebServer::eraseclient(int sockfd) {
 	timer_list->erase_timer(user[sockfd].timer);
 	client_conn[sockfd].erasefd();
-	//epoll_ctl(m_epollfd, EPOLL_CTL_DEL, sockfd, NULL);
-	//close(sockfd);
 }
 
 void WebServer::adjustclient(int sockfd) {

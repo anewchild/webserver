@@ -28,7 +28,6 @@ private:
 				task = task_queue.front();
 				task_queue.pop();
 			}
-			//LOG_DEBUG("success push");
 			task.handle();
 		}
 		return;

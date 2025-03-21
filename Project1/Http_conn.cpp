@@ -28,7 +28,6 @@ void http_init_sql() {
 	while (MYSQL_ROW row = mysql_fetch_row(res)) {
 		std::string s1(row[0]), s2(row[1]);
 		user_map[s1] = s2;
-		//std::cout << s1 << " " << s2 << "\n";
 	}
 }
 bool Http_conn::f_read() {
@@ -298,7 +297,6 @@ bool Http_conn::http_read() {
 		return false;
 	}
 	return true;
-	//munmap(file_p, m_stat.st_size);
 }
 bool Http_conn::http_process() {
 	bool ret = http_read();
@@ -316,6 +314,10 @@ bool Http_conn::http_send() {
 		send_tmp = writev(sockfd, m_iovec, num_iov);
 		if (send_tmp < 0) {
 			// 发送出错
+			if (errno == EAGAIN) {
+				modfd(EPOLLOUT);
+				return true;
+			}
 			if(num_iov > 1)munmap(file_p, m_stat.st_size);
 			return false;
 		}
@@ -334,7 +336,6 @@ bool Http_conn::http_send() {
 				munmap(file_p, m_stat.st_size);
 			}
 			modfd(EPOLLIN);
-			LOG_DEBUG("sucess !");
 			if (long_alive) {
 				init();
 				//长连接

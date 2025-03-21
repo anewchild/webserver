@@ -6,7 +6,8 @@ void Task::handle() {
 		hptr->http_process();
 	}
 	else {
-		hptr->http_send();
+		bool ret = hptr->http_send();
+		keep_live->set_value(ret);
 	}
 	return;
 }

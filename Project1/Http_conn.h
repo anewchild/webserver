@@ -82,6 +82,7 @@ public:
 		m_epollfd = epollfd;
 		sockfd = acceptfd;
 		cwd_s = std::string(cwd_string);
+		long_alive = false;
 		init();
 	};
 	void init() {
